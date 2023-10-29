@@ -13,7 +13,7 @@
 
 
 
-#==========================Minimum Temperature=========================================
+#========================== Minimum Temperature=========================================
 # Invoking the pipebind operator ####
 Sys.setenv("_R_USE_PIPEBIND_" = "true")
 source("For Windows Systems/Scripts/FunctionsScript_W.R")
