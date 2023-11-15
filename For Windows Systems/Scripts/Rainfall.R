@@ -1,5 +1,5 @@
 #=====================================================================================================================
-#                      GSSTI - GMET -  
+#                      GSSTI - GMET - GNAPP
 # Digitizing Climatological Paper Archives in Ghana: 
 # 
 # Project: Digitizing Climatological Paper Archives in Ghana: Consultancy Service to support the Ghana Meteorololigcal Agency in Digitizing Climatological Paper Archives in Ghana
@@ -29,18 +29,14 @@ RR <- data[[grep("RR", names(data), value = TRUE)]]
 RR_split <- dataSplit[[grep("Rainfall", names(dataSplit), value = TRUE)]]
 
 # Start and End Years for each Rainfall Stations ####
-startEndYear(list = RR_split) -> startEndYears_RR
+startEndYear(list = RR_split) |> 
+  # Writing to Disk
+  write.csv(
+    file = paste(path, "RR/startEndYears of Rainfall Stations.csv", sep = "/"), 
+    row.names = FALSE
+  )
 
-# Writing to Disk
-write.csv(
-  startEndYears_RR, 
-  file = paste(path, "RR/startEndYears of Rainfall Stations.csv", sep = "/"), 
-  row.names = FALSE
-)
 
-# spliting Stations IDs "Eg Gh Id" into 15 elements, as a function of cluster size
-idsRR <- parallel::splitIndices(length(unique(RR[ ,StationName_ID])), ncores) |> 
-  lapply(\(vec) unique(RR[ ,StationName_ID])[vec])
 
 
 #=======================Creating a cluster==================================#
@@ -53,6 +49,10 @@ cl_RR <- parallel::makeCluster(
   spec = ncores,
   type = "PSOCK"
 )
+
+# spliting Stations IDs "Eg Gh Id" into 15 elements, as a function of cluster size
+idsRR <- parallel::splitIndices(length(unique(RR[ ,StationName_ID])), ncores) |> 
+  lapply(\(vec) unique(RR[ ,StationName_ID])[vec])
 
 
 # #Exporting datasets to all nodes of cl_RR
@@ -385,14 +385,14 @@ parallel::stopCluster(cl_RR)
 
 #==============================Extracting Duplicates===================================
 # Duplicates ####
-Duplicates_RR <- Duplicates(Profile_StationsRR)
+Duplicates(Profile_StationsRR) |> 
+  # Writing to a workbook ####
+  rio::export(
+    file = paste(path, "RR/Duplicates_RR.xlsx", sep = "/"), 
+    sheetNames = c("Duplicated IDs", "oneTownDiffIDs", "oneTownSD-IDsSameType")
+  )
 
-# Writing to a workbook ####
-rio::export(
-  Duplicates_RR, 
-  file = paste(path, "RR/Duplicates_RR.xlsx", sep = "/"), 
-  sheetNames = c("Duplicated IDs", "oneTownDiffIDs", "oneTownSD-IDsSameType"),
-)
+
 
 
 
@@ -406,7 +406,7 @@ subset(
     )
   )
 ) |> 
-  rio::export(file = paste(path, "RR/sameObservationRR.xlsx",sep = "/"),)
+  rio::export(file = paste(path, "RR/sameObservationRR.xlsx",sep = "/"))
 
 
 
