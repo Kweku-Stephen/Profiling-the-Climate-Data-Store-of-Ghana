@@ -1,5 +1,5 @@
 #=====================================================================================================================
-#                      GSSTI - GMET -  
+#                      GSSTI - GMET - GNAPP
 # Digitizing Climatological Paper Archives in Ghana: 
 # 
 # Project: Digitizing Climatological Paper Archives in Ghana: Consultancy Service to support the Ghana Meteorololigcal Agency in Digitizing Climatological Paper Archives in Ghana
@@ -29,34 +29,29 @@ TX <- data[[grep("TX|Tx", names(data), value = TRUE)]]
 TX_split <- dataSplit[[grep("TMax", names(dataSplit), value = TRUE)]]
 
 # Start and End Years for each Rainfall Stations ####
-startEndYear(list = TX_split) -> startEndYears_TX
-
-# Writing to Disk
-write.csv(
-  startEndYears_TX, 
-  file = paste(path, "TX/startEndYears of MaxTemp Stations.csv", sep = "/"), 
-  row.names = FALSE
-)
-
-# spliting Stations IDs "Eg Gh Id" into 15 elements, as a function of cluster size
-idsTX <- parallel::splitIndices(length(unique(TX[ ,StationName_ID])), ncores) |> 
-  lapply(\(vec) unique(TX[ ,StationName_ID])[vec])
+startEndYear(list = TX_split) |> 
+  # Writing to Disk
+  write.csv(
+    file = paste(path, "TX/startEndYears of MaxTemp Stations.csv", sep = "/"), 
+    row.names = FALSE
+  )
 
 
 
 #============================Creating a Cluster===============================
 
-# Creating a cluster of size ncores
 # Compute nodes
 ncores <- nCores()
 
-# cluster of size, ncores
 # Creating a Cluster of ncore nodes
 cl_TX <- parallel::makeCluster(
   spec = ncores,
   type = "PSOCK"
 )
 
+# spliting Stations IDs "Eg Gh Id" into 15 elements, as a function of cluster size
+idsTX <- parallel::splitIndices(length(unique(TX[ ,StationName_ID])), ncores) |> 
+  lapply(\(vec) unique(TX[ ,StationName_ID])[vec])
 
 # #Exporting datasets to all nodes of cl_RR
 #parallel::clusterExport(cl_RR, c("RR_split", "idsRR"))
@@ -387,15 +382,12 @@ parallel::stopCluster(cl_TX)
 #=========================Extracting Duplicates================================
 
 # Duplicates ####
-Duplicates_TX <- Duplicates(Profile_StationsTX)
-
-# Writing to a workbook ####
-rio::export(
-  Duplicates_TX, 
-  file = paste(path, "TX/Duplicates_TX.xlsx", sep = "/"), 
-  sheetNames = c("Duplicated IDs", "oneTownDiffIDs", "oneTownSD-IDsSameType"),
-)
-
+Duplicates(Profile_StationsTX) |> 
+  # Writing to a workbook ####
+  rio::export(
+    file = paste(path, "TX/Duplicates_TX.xlsx", sep = "/"), 
+    sheetNames = c("Duplicated IDs", "oneTownDiffIDs", "oneTownSD-IDsSameType")
+  )
 
 
 # Same Observation Duplicates
