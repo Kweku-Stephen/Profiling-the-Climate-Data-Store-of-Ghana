@@ -23,7 +23,7 @@ Sys.setenv("_R_USE_PIPEBIND_" = "true")
 pkgs <- c("magrittr", "dplyr", "parallelly", "ggplot2", "data.table", "rio")
 
 if(length(setdiff(pkgs, installed.packages())) > 0) {
-  install.packages(pkgs)
+  install.packages(pkgs, dependencies = TRUE)
   sapply(pkgs, require, character.only = TRUE)
 } else {
   sapply(pkgs, require, character.only = TRUE)
@@ -31,7 +31,7 @@ if(length(setdiff(pkgs, installed.packages())) > 0) {
 
 
 # Reading in Datasets into Memory ####
-data <- dir(path = "For Windows Systems/Data/", pattern = ".txt",full.names = TRUE) |>
+data <- dir(path = "For Windows Systems/Data/UpdateData", pattern = ".txt",full.names = TRUE) |>
   lapply(
     data.table::fread,
     header = TRUE,
@@ -139,7 +139,7 @@ cl <- parallel::makeCluster(
 
 # #Rainfall ####
 
-data[[grep("RR|Rr|rr", names(data), value = TRUE)]] <- parallel::clusterApply(
+dups <- parallel::clusterApply(
   # cluster
   cl,
   # chunking on worker side
@@ -159,15 +159,29 @@ data[[grep("RR|Rr|rr", names(data), value = TRUE)]] <- parallel::clusterApply(
   # second argument "data" to the anonymous function
   data = data[[grep("RR|Rr|rr", names(data), value = TRUE)]]
 ) |> . =>
-  do.call("c", .) |> . =>
-  data[[grep("RR|Rr|rr", names(data), value = TRUE)]][!duplicated(.), ]
+  do.call("c", .) 
+
+#
+data[[grep("RR|Rr|rr", names(data), value = TRUE)]] |> . =>
+  if(nrow(.[duplicated(dups), ]) == 0) {
+  "0 duplicates found for Rainfall"
+} else {
+  sprintf(
+    "%i duplicates identified for Rainfall", nrow(.[duplicated(dups), ])
+  )
+}
+
+#
+data[[grep("RR|Rr|rr", names(data), value = TRUE)]] <-  data[[grep("RR|Rr|rr", names(data), value = TRUE)]][!duplicated(dups), ]
 
 
+# Stopping Cluster
+parallel::stopCluster(cl)
 
 
-# #Maximum Temperature ####
+# Maximum Temperature ####
 
-data[[grep("TX|Tx", names(data), value = TRUE)]] <- apply(
+dupsMX <- apply(
   data[[grep("TX|Tx", names(data), value = TRUE)]],
   1,
   FUN = \(vec) {
@@ -175,14 +189,25 @@ data[[grep("TX|Tx", names(data), value = TRUE)]] <- apply(
       paste(collapse = "") |> . =>
       gsub("[[:punct:]]|[ \t\n\r\f\v]", "", .)
   }
-) |> . =>
-  data[[grep("TX|Tx", names(data), value = TRUE)]][!duplicated(.), ]
+) 
+#
+data[[grep("TX|Tx", names(data), value = TRUE)]] |> . =>
+  if(nrow(.[duplicated(dupsMX), ]) == 0) {
+    "0 duplicates found for Max Temp"
+  } else {
+    sprintf(
+      "%i duplicates identified for Max Temp", nrow(.[duplicated(dupsMX), ])
+    )
+  }
+
+#  
+data[[grep("TX|Tx", names(data), value = TRUE)]] <- data[[grep("TX|Tx", names(data), value = TRUE)]][!duplicated(dupsMX), ]
 
 
 
-# # Minimum Temperarure ####
+# Minimum Temperature ####
 
-data[[grep("TN|Tn|tn", names(data), value = TRUE)]] <- apply(
+dupsMN <- apply(
   data[[grep("TN|Tn|tn", names(data), value = TRUE)]],
   1,
   FUN = \(vec) {
@@ -190,14 +215,19 @@ data[[grep("TN|Tn|tn", names(data), value = TRUE)]] <- apply(
       paste(collapse = "") |> . =>
       gsub("[[:punct:]]|[ \t\n\r\f\v]", "", .)
   }
-) |> . =>
-  data[[grep("TN|Tn|tn", names(data), value = TRUE)]][!duplicated(.), ]
+)
+#
+data[[grep("TN|Tn|tn", names(data), value = TRUE)]] |> . =>
+  if(nrow(.[duplicated(dupsMN), ]) == 0) {
+    "0 duplicates found for Min Temp"
+  } else {
+    sprintf(
+      "%i duplicates identified for Min Temp", nrow(.[duplicated(dupsMN), ])
+    )
+  }
+#
+data[[grep("Tn|Tn|tn", names(data), value = TRUE)]] <- data[[grep("TN|Tn|tn", names(data), value = TRUE)]][!duplicated(dupsMN), ]
 
-
-
-
-# Stopping Cluster
-parallel::stopCluster(cl)
 
 
 #====================================================================================
