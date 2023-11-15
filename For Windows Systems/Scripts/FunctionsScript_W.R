@@ -3,11 +3,8 @@
 #Sys.setenv("_R_USE_PIPEBIND_" = "true")
 require(magrittr)
 
-# Path for output files
-path <- "For Windows Systems/outputs"
 
-
-# Testing for sufficient cores for computation
+# cores for computation
 nCores <- function() {
   
   availCores <- parallelly::availableCores()
@@ -16,7 +13,7 @@ nCores <- function() {
   ))
   
   output <- ifelse(
-    nc > availCores,
+    nc > availCores | nc <= 0,
     stop(sprintf("Number of cores must be > 1 and < %i", availCores)),
     nc
   )
@@ -110,7 +107,7 @@ Duplicates <- function(data) {
 # Data Integrity visualization ####
 RRdataIntegVis <- function(reshapedData, StationName_ID = "") {
   
-  dt <- subset(reshapedData[[StationName_ID]], Date <= format(Sys.time(), "%Y-%m-%d")) |> . =>
+  dat <- subset(reshapedData[[StationName_ID]], Date <= format(Sys.time(), "%Y-%m-%d")) |> . =>
     data.table::merge.data.table(
       data.table::data.table(
         Date = seq.Date(
@@ -124,8 +121,8 @@ RRdataIntegVis <- function(reshapedData, StationName_ID = "") {
     )
   
   # Categorizing values
-  dt$Status <- sapply(
-    dt$value, 
+  dat$Status <- sapply(
+    dat$value, 
     \(x) {
       if (is.na(x)) {
         "Missing"
@@ -138,47 +135,47 @@ RRdataIntegVis <- function(reshapedData, StationName_ID = "") {
   )
   
   # Adding nth Day Dates as a column
-  dt <- within(
-    dt,
-    {Day = as.numeric(strftime(dt$Date, format = "%j"))}
+  dat <- within(
+    dat,
+    {Day = as.numeric(strftime(dat$Date, format = "%j"))}
   )
   
   # Adding Status columns for each element of the status variable
-  dt %<>% base::within(
+  dat %<>% base::within(
     {
-      Dry = ifelse(dt$Status == "Dry", "Dry", NA)
-      Missing = ifelse(dt$Status == "Missing", "Missing", NA)
-      Available = ifelse(dt$Status == "Available", "Available", NA)
+      Dry = ifelse(dat$Status == "Dry", "Dry", NA)
+      Missing = ifelse(dat$Status == "Missing", "Missing", NA)
+      Available = ifelse(dat$Status == "Available", "Available", NA)
     }
   ) 
   
-  # Plotting ##
-  rr <- ggplot(data = b, aes(x = as.numeric(format(b$Date, "%Y")))) +
+  # # Plotting ##
+  rr <- ggplot(data = dat, aes(x = as.numeric(format(dat$Date, "%Y")))) +
     geom_point(
       data = data.table::merge.data.table(
-        data.table::data.table(Date = seq(as.Date(range(b$Date)[1]), as.Date(range(b$Date)[2]), by = "day")),
-        subset(b, Status == "Dry"),
+        data.table::data.table(Date = seq(as.Date(range(dat$Date)[1]), as.Date(range(dat$Date)[2]), by = "day")),
+        subset(dat, Status == "Dry"),
         by = "Date",
         all = TRUE
-      ) |> data.table::setorderv(cols = "Date"), 
+      ) |> dplyr::arrange(Date),
       aes(y = Day, col = "Dry")
     ) +
     geom_point(
       data = data.table::merge.data.table(
-        data.table::data.table(Date = seq(as.Date(range(b$Date)[1]), as.Date(range(b$Date)[2]), by = "day")),
-        subset(b, Status == "Missing"),
+        data.table::data.table(Date = seq(as.Date(range(dat$Date)[1]), as.Date(range(dat$Date)[2]), by = "day")),
+        subset(dat, Status == "Missing"),
         by = "Date",
         all = TRUE
-      ) |> data.table::setorderv(cols = "Date"), 
+      ) |> dplyr::arrange(Date),
       aes(y = Day, col = "Missing")
     ) +
     geom_point(
       data = data.table::merge.data.table(
-        data.table::data.table(Date = seq(as.Date(range(b$Date)[1]), as.Date(range(b$Date)[2]), by = "day")),
-        subset(b, Status == "Available"),
+        data.table::data.table(Date = seq(as.Date(range(dat$Date)[1]), as.Date(range(dat$Date)[2]), by = "day")),
+        subset(dat, Status == "Available"),
         by = "Date",
         all = TRUE
-      ) |> data.table::setorderv(cols = "Date"), 
+      ) |> dplyr::arrange(Date),
       aes(y = Day, col = "Available")
     ) +
     scale_color_manual(
@@ -187,13 +184,13 @@ RRdataIntegVis <- function(reshapedData, StationName_ID = "") {
     ) +
     labs(
       title = paste("Rainfall", StationName_ID, sep = " ") ,
-      x = "Day of Year", 
+      x = "Day of Year",
       y = "Day of the Year"
     ) +
     scale_x_continuous(
       breaks = seq(
-        min(as.numeric(format(b$Date, "%Y"))), 
-        max(as.numeric(format(b$Date, "%Y"))), 
+        min(as.numeric(format(dat$Date, "%Y"))),
+        max(as.numeric(format(dat$Date, "%Y"))),
         by = 10
       )
     ) +
@@ -206,13 +203,14 @@ RRdataIntegVis <- function(reshapedData, StationName_ID = "") {
   
   # return value
   return(rr)
+  
 }
 
 
 # Temperature ####
 TMdataIntegVis <- function(reshapedData, StationName_ID = "", var = "") {
   
-  dt <- subset(reshapedData[[StationName_ID]], Date <= format(Sys.time(), "%Y-%m-%d")) |> . =>
+  dat <- subset(reshapedData[[StationName_ID]], Date <= format(Sys.time(), "%Y-%m-%d")) |> . =>
     data.table::merge.data.table(
       data.table::data.table(
         Date = seq.Date(
@@ -226,8 +224,8 @@ TMdataIntegVis <- function(reshapedData, StationName_ID = "", var = "") {
     )
   
   # Categorizing values
-  dt$Status <- sapply(
-    dt$value, 
+  dat$Status <- sapply(
+    dat$value, 
     \(x) {
       if (is.na(x)) {
         "Missing"
@@ -238,53 +236,49 @@ TMdataIntegVis <- function(reshapedData, StationName_ID = "", var = "") {
   )
   
   # Adding nth Day Dates as a column
-  dt <- within(
-    dt,
-    {Day = as.numeric(strftime(dt$Date, format = "%j"))}
+  dat <- within(
+    dat,
+    {Day = as.numeric(strftime(dat$Date, format = "%j"))}
   )
   
   # Adding Status columns for each element of the status variable
-  dt %<>% base::within(
+  dat %<>% base::within(
     {
-      Missing = ifelse(dt$Status == "Missing", "Missing", NA)
-      Available = ifelse(dt$Status == "Available", "Available", NA)
+      Missing = ifelse(dat$Status == "Missing", "Missing", NA)
+      Available = ifelse(dat$Status == "Available", "Available", NA)
     }
   )
   
   
   # Plotting
-  tm <- ggplot(data = b, aes(x = as.numeric(format(b$Date, "%Y")))) +
+  tm <- ggplot(data = dat, aes(x = as.numeric(format(dat$Date, "%Y")))) +
     geom_point(
-      data = data.table::merge.data.table(
-        data.table::data.table(Date = seq(as.Date(range(b$Date)[1]), as.Date(range(b$Date)[2]), by = "day")),
-        subset(b, Status == "Missing"),
-        by = "Date",
-        all = TRUE
-      ) |> data.table::setorderv(cols = "Date"), 
-      aes(y = Day, col = "Missing")
+      data = dplyr::full_join(
+        data.table::data.table(Date = seq(as.Date(range(dat$Date)[1]), as.Date(range(dat$Date)[2]), by = "day")),
+        subset(dat, Status == "Available"),
+        by = c("Date" = "Date")
+      ) |> dplyr::arrange(Date), 
+      aes(y = Day, col = "Available")
     ) +
     geom_point(
-      data = data.table::merge.data.table(
-        data.table::data.table(Date = seq(as.Date(range(b$Date)[1]), as.Date(range(b$Date)[2]), by = "day")),
-        subset(b, Status == "Available"),
-        by = "Date",
-        all = TRUE
-      ) |> data.table::setorderv(cols = "Date"), 
-      aes(y = Day, col = "Available")
+      data = dplyr::full_join(
+        data.table::data.table(Date = seq(as.Date(range(dat$Date)[1]), as.Date(range(dat$Date)[2]), by = "day")),
+        subset(dat, Status == "Missing"),
+        by = c("Date" = "Date")
+      ) |> dplyr::arrange(Date), 
+      aes(y = Day, col = "Missing")
     ) +
     scale_color_manual(
       "Legend",
-      values = c("Available" = "brown", "Missing" = "grey")
+      values = c("Missing" = "grey", "Available" = "firebrick")
     ) +
-    labs(
-      title = paste(var, StationName_ID, sep = " ") ,
-      x = "Day of Year", 
-      y = "Day of the Year"
-    ) +
+    labs(title = paste(var, StationName_ID, sep = " "), 
+         x = "Year", 
+         y = "Day of the year") +
     scale_x_continuous(
       breaks = seq(
-        min(as.numeric(format(b$Date, "%Y"))), 
-        max(as.numeric(format(b$Date, "%Y"))), 
+        min(as.numeric(format(dat$Date, "%Y"))), 
+        max(as.numeric(format(dat$Date, "%Y"))), 
         by = 10
       )
     ) +
@@ -297,4 +291,5 @@ TMdataIntegVis <- function(reshapedData, StationName_ID = "", var = "") {
   
   # return value
   return(tm)
+  
 }
