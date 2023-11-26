@@ -42,7 +42,7 @@ startEndYear(list = TX_split)  |>
 # Parallel Computation Cores
 ncoresTemp <- nCores()
 
-# spliting Tmax Stations IDs "Eg Gh Id" into 15 elements, as a function of cluster size
+# spliting Tmax Stations IDs "Eg Gh Id" into ncores elements (cluster size)
 idsTX <- parallel::splitIndices(length(unique(TX[ ,StationName_ID])), ncoresTemp) |> 
   lapply(\(vec) unique(TX[ ,StationName_ID])[vec])
 

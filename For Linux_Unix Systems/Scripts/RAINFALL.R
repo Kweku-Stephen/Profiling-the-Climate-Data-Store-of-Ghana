@@ -43,7 +43,7 @@ startEndYear(list = RR_split)  |>
 ncores <- nCores()
 
 
-# spliting Stations IDs "Eg Gh Id" into 15 elements, as a function of cluster size
+# spliting Stations IDs "Eg Gh Id" into ncores elements (cluster size)
 idsRR <- parallel::splitIndices(length(unique(RR[ ,StationName_ID])), ncores) |> 
   lapply(\(vec) unique(RR[ ,StationName_ID])[vec])
 

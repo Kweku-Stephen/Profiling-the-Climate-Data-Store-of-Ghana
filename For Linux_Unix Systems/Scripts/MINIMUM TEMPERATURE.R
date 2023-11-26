@@ -43,7 +43,7 @@ startEndYear(list = TN_split)  |>
 # Parallel Computation Cores
 ncoresTemp <- nCores()
 
-# spliting Stations IDs "Eg Gh Id" into 15 elements, as a function of cluster size
+# spliting Stations IDs "Eg Gh Id" into ncores elements (cluster size)
 idsTN <- parallel::splitIndices(length(unique(TN[ ,StationName_ID])), ncoresTemp) |> 
   lapply(\(vec) unique(TN[ ,StationName_ID])[vec])
 
