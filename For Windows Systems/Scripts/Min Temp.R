@@ -49,7 +49,7 @@ cl_TN <- parallel::makeCluster(
   type = "PSOCK"
 )
 
-# spliting Stations IDs "Eg Gh Id" into 15 elements, as a function of cluster size
+# spliting Stations IDs "Eg Gh Id" into ncores elements (cluater size)
 idsTN <- parallel::splitIndices(length(unique(TN[ ,StationName_ID])), ncores) |> 
   lapply(\(vec) unique(TN[ ,StationName_ID])[vec])
 
