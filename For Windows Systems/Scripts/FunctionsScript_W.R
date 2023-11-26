@@ -13,7 +13,7 @@ nCores <- function() {
   ))
   
   output <- ifelse(
-    nc > availCores | nc <= 0,
+    nc >= availCores | nc <= 1,
     stop(sprintf("Number of cores must be > 1 and < %i", availCores)),
     nc
   )

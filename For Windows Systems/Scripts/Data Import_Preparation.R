@@ -31,7 +31,7 @@ if(length(setdiff(pkgs, installed.packages())) > 0) {
 
 
 # Reading in Datasets into Memory ####
-data <- dir(path = "For Windows Systems/Data/UpdateData", pattern = ".txt",full.names = TRUE) |>
+data <- dir(path = "For Windows Systems/Data/", pattern = ".txt",full.names = TRUE) |>
   lapply(
     data.table::fread,
     header = TRUE,
@@ -161,6 +161,9 @@ dups <- parallel::clusterApply(
 ) |> . =>
   do.call("c", .) 
 
+# Stopping Cluster
+parallel::stopCluster(cl)
+
 #
 data[[grep("RR|Rr|rr", names(data), value = TRUE)]] |> . =>
   if(nrow(.[duplicated(dups), ]) == 0) {
@@ -175,8 +178,6 @@ data[[grep("RR|Rr|rr", names(data), value = TRUE)]] |> . =>
 data[[grep("RR|Rr|rr", names(data), value = TRUE)]] <-  data[[grep("RR|Rr|rr", names(data), value = TRUE)]][!duplicated(dups), ]
 
 
-# Stopping Cluster
-parallel::stopCluster(cl)
 
 
 # Maximum Temperature ####
@@ -226,7 +227,7 @@ data[[grep("TN|Tn|tn", names(data), value = TRUE)]] |> . =>
     )
   }
 #
-data[[grep("Tn|Tn|tn", names(data), value = TRUE)]] <- data[[grep("TN|Tn|tn", names(data), value = TRUE)]][!duplicated(dupsMN), ]
+data[[grep("TN|Tn|tn", names(data), value = TRUE)]] <- data[[grep("TN|Tn|tn", names(data), value = TRUE)]][!duplicated(dupsMN), ]
 
 
 

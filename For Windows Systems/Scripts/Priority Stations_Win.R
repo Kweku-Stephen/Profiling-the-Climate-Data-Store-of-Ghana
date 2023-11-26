@@ -1,5 +1,5 @@
 #=====================================================================================================================
-#                    GSSTI - GMET - 
+#                    GSSTI - GMET - GNAPP
 # Digitizing Climatological Paper Archives in Ghana: 
 # 
 # Project: Digitizing Climatological Paper Archives in Ghana: Consultancy Service to support the Ghana Meteorololigcal Agency in Digitizing Climatological Paper Archives in Ghana
