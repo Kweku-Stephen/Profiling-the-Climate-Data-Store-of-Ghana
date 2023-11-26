@@ -21,6 +21,9 @@ Sys.setenv("_R_USE_PIPEBIND_" = "true")
 # Sourcing Functions Script ####
 source("For Linux_Unix Systems/Scripts/PriorityFunctionsScript.R")
 
+# Path to output
+path <- "For Linux_Unix Systems/outputs"
+
 # Creating an output directories for each Variable
 sapply(
   c("RR", "TMax", "TMin"), 
@@ -48,34 +51,34 @@ for(i in 1:(length(pDistricts) - 1)) {
 
 # Start and End Year ####
 # Rainfall
-rr_pr <- startEndYear(list = RR_split)|> . =>
-  subset(., grepl(res, .[ ,Dist]))
-# Writing out
-write.csv(
-  rr_pr, 
-  file = paste0(path, "/RR/Priority Districts/RR_startEndYear.csv"), 
-  row.names = FALSE
-)
+startEndYear(list = RR_split)|> . =>
+  subset(., grepl(res, .[ ,Dist])) |> 
+  # Writing out
+  write.csv(
+    file = paste0(path, "/RR/Priority Districts/RR_startEndYear.csv"), 
+    row.names = FALSE
+  )
+
 
 # Max Temp 
-tx_pr <- startEndYear(list = TX_split)|> . =>
-  subset(., grepl(res, .[ ,Dist]))
-# Writing out
-write.csv(
-  tx_pr, 
-  file = paste0(path, "/TMax/Priority Districts/TX_startEndYear.csv"), 
-  row.names = FALSE
-)
+startEndYear(list = TX_split)|> . =>
+  subset(., grepl(res, .[ ,Dist])) |> 
+  # Writing out
+  write.csv(
+    file = paste0(path, "/TMax/Priority Districts/TX_startEndYear.csv"), 
+    row.names = FALSE
+  )
+
 
 # Min Temp ####
-tn_pr <- startEndYear(list = TN_split)|> . =>
-  subset(., grepl(res, .[ ,Dist]))
-# Writing out
-write.csv(
-  tn_pr, 
-  file = paste0(path, "/TMin/Priority Districts/Tn_startEndYear.csv"), 
-  row.names = FALSE
-)
+startEndYear(list = TN_split)|> . =>
+  subset(., grepl(res, .[ ,Dist])) |> 
+  # Writing out
+  write.csv(
+    file = paste0(path, "/TMin/Priority Districts/Tn_startEndYear.csv"), 
+    row.names = FALSE
+  )
+
 
 
 
@@ -83,132 +86,130 @@ write.csv(
 # # Profile ####
 # # Computing data availability for each Station
 # Rainfall
-Profile_StationsRR_Prior <- Profile_StationsRR |> . => 
-  subset(., grepl(res, .[ ,District]))
-# Writing to disk
-write.csv(
-  Profile_StationsRR_Prior,
-  file = paste0(path, "/RR/Priority Districts/Profiled Stations.csv"),
-  row.names = FALSE
-)
+Profile_StationsRR |> . => 
+  subset(., grepl(res, .[ ,District])) |> 
+  # Writing to disk
+  write.csv(
+    file = paste0(path, "/RR/Priority Districts/Profiled Stations.csv"),
+    row.names = FALSE
+  )
+  
+
 
 # Max Temp
-Profile_StationsTX_Prior <- Profile_StationsTX |> . =>
-  subset(., grepl(res, .[ ,District]))
-# Writing to disk
-write.csv(
-  Profile_StationsTX_Prior,
-  file = paste0(path, "/TMax/Priority Districts/Profiled StationsTX.csv"),
-  row.names = FALSE
-)
+Profile_StationsTX |> . =>
+  subset(., grepl(res, .[ ,District])) |> 
+  # Writing to disk
+  write.csv(
+    file = paste0(path, "/TMax/Priority Districts/Profiled StationsTX.csv"),
+    row.names = FALSE
+  )
+
 
 # Min Temp
-Profile_StationsTN_Prior <- Profile_StationsTN |> . =>
-  subset(., grepl(res, .[ ,District]))
-# Writing to disk
-write.csv(
-  Profile_StationsTN_Prior,
-  file = paste0(path, "/TMin/Priority Districts/Profiled StationsTN.csv"),
-  row.names = FALSE
-)
+Profile_StationsTN |> . =>
+  subset(., grepl(res, .[ ,District])) |> 
+  # Writing to disk
+  write.csv(
+    file = paste0(path, "/TMin/Priority Districts/Profiled StationsTN.csv"),
+    row.names = FALSE
+  )
+
 
 
 
 # Missing Stations Days ####
+
+# computing nodes
+cores_Prior <- nCores()
+
 # Rainfall
 MissingDays_prio(
   vec = regions, 
-  list = profMssReg, 
-  nCores = 16, 
+  list = profMssRegRR, 
+  cluster = cores_Prior, 
   rgex = res
-)-> Priority_Rainfall
+) |> . =>
+  # Writing out
+  rio::export(
+    .,
+    file = paste0(path, "/RR/Priority Districts/RRMissing.xlsx"), 
+    rowNames = FALSE,
+    sheetName = names(.)
+  )
 
-# Writing out
-rio::export(
-  Priority_Rainfall, 
-  file = paste0(path, "/RR/Priority Districts/RRMissing.xlsx"), 
-  rowNames = FALSE,
-  sheetName = names(Priority_Rainfall)
-)
 
 
 # Maximum Temperature 
 MissingDays_prio(
   vec = regions,
   list = profMssRegTX,
-  nCores = 16,
+  cluster = cores_Prior,
   rgex = res
-) -> Priority_TMax
+) |> . =>
+  # Writing out
+  rio::export(
+    .,
+    file = paste0(path, "/TMax/Priority Districts/TXMissing.xlsx"),
+    rowNames = FALSE,
+    sheetName = names(.)
+  )
 
-# Writing out
-rio::export(
-  Priority_TMax, 
-  file = paste0(path, "/TMax/Priority Districts/TXMissing.xlsx"), 
-  rowNames = FALSE,
-  sheetName = names(Priority_TMax)
-)
 
 
 # Minimum Temperature
 MissingDays_prio(
   vec = regions,
   list = profMssRegTN,
-  nCores = 16,
+  cluster = cores_Prior,
   rgex = res
-) -> Priority_TMin
-
-# Writing out
-rio::export(
-  Priority_TMin, 
-  file = paste0(path, "/TMin/Priority Districts/TNMissing.xlsx"), 
-  rowNames = FALSE,
-  sheetName = names(Priority_TMin)
-)
+) |> . =>
+  # Writing out
+  rio::export(
+    ., 
+    file = paste0(path, "/TMin/Priority Districts/TNMissing.xlsx"), 
+    rowNames = FALSE,
+    sheetName = names(.)
+  )
 
 
 
 
 # Duplicates ####
 # Rainfall
-Duplicates_RR_prio <- Duplicates(Profile_StationsRR) |> 
+Duplicates(Profile_StationsRR) |> 
   # Extracting Priority Stations
-  lapply(\(datatable) subset(datatable, grepl(res, datatable[ ,District])))
-
-# Writing to a workbook ####
-rio::export(
-  Duplicates_RR_prio, 
-  file = paste0(path, "/RR/Priority Districts/Duplicates_RR.xlsx"), 
-  rowNames = FALSE,
-  sheetNames = c("Duplicated IDs", "oneTownDiffIDs", "oneTowndif/sameid_diffType")
-)
+  lapply(\(datatable) subset(datatable, grepl(res, datatable[ ,District]))) |> 
+  # Writing to a workbook ####
+  rio::export(
+    file = paste0(path, "/RR/Priority Districts/Duplicates_RR.xlsx"), 
+    rowNames = FALSE,
+    sheetNames = c("Duplicated IDs", "oneTownDiffIDs", "oneTowndif/sameid_diffType")
+  )
 
 
 # Max Temp
-Duplicates_TX_prio <- Duplicates(Profile_StationsTX) |> 
+Duplicates(Profile_StationsTX) |> 
   # Extracting Priority Stations
-  lapply(\(datatable) subset(datatable, grepl(res, datatable[ ,District])))
-
-# Writing to a workbook ####
-rio::export(
-  Duplicates_TX_prio, 
-  file = paste0(path, "/TMax/Priority Districts/Duplicates_TX.xlsx"), 
-  rowNames = FALSE,
-  sheetNames = c("Duplicated IDs", "oneTownDiffIDs", "oneTowndif/sameid_diffType")
-)
+  lapply(\(datatable) subset(datatable, grepl(res, datatable[ ,District]))) |> 
+  # Writing to a workbook ####
+  rio::export(
+    file = paste0(path, "/TMax/Priority Districts/Duplicates_TX.xlsx"), 
+    rowNames = FALSE,
+    sheetNames = c("Duplicated IDs", "oneTownDiffIDs", "oneTowndif/sameid_diffType")
+  )
 
 
 # Min Temp
-Duplicates_TN_prio <- Duplicates(Profile_StationsTN) |> 
+Duplicates(Profile_StationsTN) |> 
   # Extracting Priority Stations
-  lapply(\(datatable) subset(datatable, grepl(res, datatable[ ,District])))
-
-# Writing to a workbook ####
-rio::export(
-  Duplicates_TN_prio, 
-  file = paste0(path, "/TMin/Priority Districts/Duplicates_TN.xlsx"), 
-  rowNames = FALSE,
-  sheetNames = c("Duplicated IDs", "oneTownDiffIDs", "oneTowndif/sameid_diffType")
-)
+  lapply(\(datatable) subset(datatable, grepl(res, datatable[ ,District]))) |> 
+  # Writing to a workbook ####
+  rio::export(
+    file = paste0(path, "/TMin/Priority Districts/Duplicates_TN.xlsx"), 
+    rowNames = FALSE,
+    sheetNames = c("Duplicated IDs", "oneTownDiffIDs", "oneTowndif/sameid_diffType")
+  )
 
 
 

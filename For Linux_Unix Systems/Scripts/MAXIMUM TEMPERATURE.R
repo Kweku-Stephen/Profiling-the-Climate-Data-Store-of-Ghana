@@ -1,5 +1,5 @@
 #=====================================================================================================================
-#                   GSSTI - GMET - 
+#                   GSSTI - GMET - GNAPP
 # Digitizing Climatological Paper Archives in Ghana: 
 # 
 # Project: Digitizing Climatological Paper Archives in Ghana: Consultancy Service to support the Ghana Meteorololigcal Agency in Digitizing Climatological Paper Archives in Ghana
@@ -13,7 +13,7 @@
 
  
 
-########################################## MAXIMUM TEMPERATURE ########################################
+################################## MAXIMUM TEMPERATURE ########################################
 # Invoking the pipebind operator ####
 Sys.setenv("_R_USE_PIPEBIND_" = "true")
 
@@ -23,9 +23,6 @@ source("For Linux_Unix Systems/Scripts/FunctionsScript.R")
 # Output Directory 
 dir.create("For Linux_Unix Systems/outputs/TMax")
 
-# Computing nodes
-ncoresTemp <- parallelly::availableCores() - 25
-
 # Maximum Temperature ####
 # Extracting the Tmax data.table from the list data(containing all 3 datatables of rr, tx and tn)
 TX <- data[[grep("Tx", names(data), value = TRUE)]]
@@ -34,14 +31,16 @@ TX <- data[[grep("Tx", names(data), value = TRUE)]]
 TX_split <- dataSplit[[grep("Tx", names(dataSplit), value = TRUE)]]
 
 # Start and End Year for Each Station
-startEndYear(list = TX_split) -> startEndYears_TX
+startEndYear(list = TX_split)  |> 
+  # Writing to Disk
+  write.csv(
+    file = paste(path, "TMax/StartandYears of .csv",sep = "/"), 
+    row.names = FALSE
+  )
 
-# Writing to Disk
-write.csv(
-  startEndYears_TX, 
-  file = paste(path, "TMax/StartandYears of .csv",sep = "/"), 
-  row.names = FALSE
-)
+
+# Parallel Computation Cores
+ncoresTemp <- nCores()
 
 # spliting Tmax Stations IDs "Eg Gh Id" into 15 elements, as a function of cluster size
 idsTX <- parallel::splitIndices(length(unique(TX[ ,StationName_ID])), ncoresTemp) |> 
@@ -134,7 +133,7 @@ profileMissingTX <- (parallel::mclapply(
       lapply(missingDays)
   },
   list = profileMissingTX,
-  mc.cores = ncores
+  mc.cores = ncoresTemp
 ) |> . =>
   do.call("c", .)) 
 
@@ -185,25 +184,32 @@ parallel::mclapply(
         }
       )
     
+    # Writing out to an excel workbook
     rio::export(
       reg, 
-      file = file.path(getwd(), "For Linux_Unix Systems/outputs/TMax", paste(vec, "xlsx", sep = ".")), 
+      file = file.path(path, "TMax", paste(vec, "xlsx", sep = ".")), 
       sheetName = names(reg), 
       rowNames = FALSE
     )
     
   },
   list = profMssRegTX,
-  mc.cores = 16
+  mc.cores = ncoresTemp
 )
 
 
 
 # Duplicates ####
-Duplicates_TX <- Duplicates(data = Profile_StationsTX)
+Duplicates(data = Profile_StationsTX) |> 
+  # Writing to a workbook ####
+  rio::export(
+    file = paste(path, "TMax/Duplicates_TX.xlsx",sep = "/"), 
+    sheetNames = c("Duplicated IDs", "oneTownDiffIDs", "oneTownSD-IDsSameType")
+  )
+  
 
 # Same Observation Duplicates
-sameObservationTX <- subset(
+subset(
   data$`Daily-Tx-All-Stations Sheet 1.txt`,
   duplicated(
     with(
@@ -211,11 +217,7 @@ sameObservationTX <- subset(
       paste(Name, `Eg Gh Id`, `Station Type`, Year, Month, sep = "-")
     )
   )
-)
+) |> 
+  rio::export(file = paste(path, "TMax/sameObservation.xlsx", sep = "/"))
 
-# Writing to a workbook ####
-rio::export(
-  Duplicates_TX, 
-  file = paste(path, "TMax/Duplicates_TX.xlsx",sep = "/"), 
-  sheetNames = c("Duplicated IDs", "oneTownDiffIDs", "oneTownSD-IDsSameType"),
-)
+

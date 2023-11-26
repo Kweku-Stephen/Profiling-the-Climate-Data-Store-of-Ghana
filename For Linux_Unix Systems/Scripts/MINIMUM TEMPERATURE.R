@@ -1,5 +1,5 @@
 #=====================================================================================================================
-#                 GSSTI - GMET - 
+#                 GSSTI - GMET - GNAPP
 # Digitizing Climatological Paper Archives in Ghana: 
 # 
 # Project: Digitizing Climatological Paper Archives in Ghana: Consultancy Service to support the Ghana Meteorololigcal Agency in Digitizing Climatological Paper Archives in Ghana
@@ -23,9 +23,6 @@ dir.create("For Linux_Unix Systems/outputs/TMin")
 # sourcing Functions Script
 source("For Linux_Unix Systems/Scripts/FunctionsScript.R")
 
-# Computing nodes
-ncoresTemp <- parallelly::availableCores() - 25
-
 # Minimum Temperature
 # Extracting the Tmin data.table from the list "data" (containing all 3 datatables of rr, tx and tn)
 TN <- data[[grep("Tn", names(data), value = TRUE)]]
@@ -34,14 +31,17 @@ TN <- data[[grep("Tn", names(data), value = TRUE)]]
 TN_split <- dataSplit[[grep("Tn", names(dataSplit), value = TRUE)]]
 
 # Start and End Year for each Station
-startEndYear(list = TN_split) -> startEndYears_TN
+startEndYear(list = TN_split)  |> 
+  # Writing to Disk
+  write.csv(
+    file = paste(path, "TMin/StartEndYears.csv", sep = "/"),
+    row.names = FALSE
+  )
 
-# Writing to Disk
-write.csv(
-  startEndYears_TN,
-  file = paste(path, "TMin/StartEndYears.csv", sep = "/"),
-  row.names = FALSE
-)
+
+
+# Parallel Computation Cores
+ncoresTemp <- nCores()
 
 # spliting Stations IDs "Eg Gh Id" into 15 elements, as a function of cluster size
 idsTN <- parallel::splitIndices(length(unique(TN[ ,StationName_ID])), ncoresTemp) |> 
@@ -111,7 +111,7 @@ profileMissingTN <- (parallel::mclapply(
       lapply(missingDays)
   },
   list = profileMissingTN,
-  mc.cores = ncores
+  mc.cores = ncoresTemp
 ) |> . =>
   do.call("c", .)) 
 
@@ -161,26 +161,38 @@ parallel::mclapply(
         }
       )
     
+    # Writing out to an excel workbook
     rio::export(
       reg, 
-      file = file.path(getwd(), "For Linux_Unix Systems/outputs/TMin", paste(vec, "xlsx", sep = ".")), 
+      file = file.path(path, "TMin", paste(vec, "xlsx", sep = ".")), 
       sheetName = names(reg), 
       rowNames = FALSE
     )
     
   },
   list = profMssRegTN,
-  mc.cores = 16
+  mc.cores = ncoresTemp
 )
 
 
 
 # Duplicates ####
-Duplicates_TN <- Duplicates(data = Profile_StationsTN)
-
-# Writing to a workbook ####
+Duplicates(data = Profile_StationsTN) |> 
+  # Writing to a workbook ####
 rio::export(
-  Duplicates_TN, 
-  file = "For Linux_Unix Systems/outputs/TMin/Duplicates_TN.xlsx", 
-  sheetNames = c("Duplicated IDs", "oneTownDiffIDs", "oneTownSD-IDsSameType"),
+  file = paste(path, "TMin/Duplicates_TN.xlsx",sep = "/"), 
+  sheetNames = c("Duplicated IDs", "oneTownDiffIDs", "oneTownSD-IDsSameType")
 )
+  
+
+# Same Observation Duplicates
+subset(
+  data$`Daily-Tn-All-Stations Sheet 1.txt`,
+  duplicated(
+    with(
+      data$`Daily-Tn-All-Stations Sheet 1.txt`,
+      paste(Name, `Eg Gh Id`, `Station Type`, Year, Month, sep = "-")
+    )
+  )
+) |> 
+  rio::export(file = paste(path, "TMin/sameObservation.xlsx", sep = "/"))

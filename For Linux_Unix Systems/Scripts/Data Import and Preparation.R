@@ -1,5 +1,5 @@
 #=====================================================================================================================
-#                           GSSTI - GMET - 
+#                           GSSTI - GMET - GNAPP
 # Digitizing Climatological Paper Archives of Ghana: 
 # 
 # Project: Digitizing Climatological Paper Archives in Ghana: Consultancy Service to support the Ghana Meteorololigcal Agency in Digitizing Climatological Paper Archives in Ghana
@@ -18,17 +18,24 @@
 Sys.setenv("_R_USE_PIPEBIND_" = "true")
 
 # Dependencies
-library(magrittr)
+pkgs <- c("magrittr", "dplyr", "parallelly", "ggplot2", "data.table", "rio")
+
+if(length(setdiff(pkgs, installed.packages())) > 0) {
+  install.packages(pkgs, dependencies = TRUE)
+  sapply(pkgs, require, character.only = TRUE)
+} else {
+  sapply(pkgs, require, character.only = TRUE)
+}
 
 # Reading in Datasets into Memory ####
-dir(path = "For Linux_Unix Systems/Data/", pattern = ".txt",full.names = TRUE) |>
+data <- dir(path = "For Linux_Unix Systems/Data/", pattern = ".txt",full.names = TRUE) |>
   lapply(
     data.table::fread,
     header = TRUE,
     sep = "\t",
     na.strings = c("9999", "-9999", "9988", "-9988", "-99.9", "99.9", "99", "-99")
   ) |>
-  setNames(dir(path = "For Linux_Unix Systems/Data/", pattern = ".txt")) -> data
+  setNames(dir(path = "For Linux_Unix Systems/Data/", pattern = ".txt")) 
 
 
 # Importing Districts and Regions Data
@@ -65,61 +72,106 @@ data %<>% lapply(
 # Parallelizing computation
 # Calling Duplicated on the entire dataframe wont return the duplicates as expected
 # because one of the duplicates may have a space or metacharacter between characters
-parallel::mclapply(
-  parallel::splitIndices(nrow(data$`Daily-RR-All-Stations Sheet 1.txt`), 4),
-  fun = \(vec) {
-    data$`Daily-RR-All-Stations Sheet 1.txt`[vec, ] |> 
+
+
+#========================Removing Duplicates============================
+
+source("For Linux_Unix Systems/Scripts/FunctionsScript.R")
+
+# Compute nodes
+ncores <- nCores()
+
+# Rainfall ####
+dups <- parallel::mclapply(
+  # chunking on worker side
+  parallel::splitIndices(nrow(data[[grep("RR|Rr|rr", names(data), value = TRUE)]]), ncores),
+  # Ananymous function for pasting elements of all rows together as one string
+  FUN = \(vec, data) {
+    data[vec, ] |>
       apply(
         1,
         FUN = \(vec) {
-          as.character(vec) |> 
+          as.character(vec) |>
             paste(collapse = "") |> . =>
             gsub("[[:punct:]]|[ \t\n\r\f\v]", "", .)
         }
       )
   },
-  mc.cores = 6
+  # second argument "data" to the anonymous function
+  data = data[[grep("RR|Rr|rr", names(data), value = TRUE)]]
 ) |> . =>
-  do.call("c", .) |> . =>
-  subset(
-    data$`Daily-RR-All-Stations Sheet 1.txt`,
-    !duplicated(.)
-  ) -> data$`Daily-RR-All-Stations Sheet 1.txt`
+  do.call("c", .) 
+#
+data[[grep("RR|Rr|rr", names(data), value = TRUE)]] |> . =>
+  if(nrow(.[duplicated(dups), ]) == 0) {
+    "0 duplicates found for Rainfall"
+  } else {
+    sprintf(
+      "%i duplicates identified for Rainfall", nrow(.[duplicated(dups), ])
+    )
+  }
+
+#
+data[[grep("RR|Rr|rr", names(data), value = TRUE)]] <-  data[[grep("RR|Rr|rr", names(data), value = TRUE)]][!duplicated(dups), ]
 
 
-# Maximum Temperature
-apply(
-  data$`Daily-Tx-All-Stations Sheet 1.txt`, 
-  1, 
+
+# Maximum Temperature ####
+
+dupsMX <- apply(
+  data[[grep("TX|Tx", names(data), value = TRUE)]],
+  1,
   FUN = \(vec) {
     as.character(vec) |>
       paste(collapse = "") |> . =>
       gsub("[[:punct:]]|[ \t\n\r\f\v]", "", .)
   }
-) |> . =>
-  subset(
-    data$`Daily-Tx-All-Stations Sheet 1.txt`,
-    !duplicated(.)
-  ) -> data$`Daily-Tx-All-Stations Sheet 1.txt`
+) 
+#
+data[[grep("TX|Tx", names(data), value = TRUE)]] |> . =>
+  if(nrow(.[duplicated(dupsMX), ]) == 0) {
+    "0 duplicates found for Max Temp"
+  } else {
+    sprintf(
+      "%i duplicates identified for Max Temp", nrow(.[duplicated(dupsMX), ])
+    )
+  }
+
+#  
+data[[grep("TX|Tx", names(data), value = TRUE)]] <- data[[grep("TX|Tx", names(data), value = TRUE)]][!duplicated(dupsMX), ]
 
 
-# Minimum Temperature
-apply(
-  data$`Daily-Tn-All-Stations Sheet 1.txt`, 
-  1, 
+
+# Minimum Temperature ####
+
+dupsMN <- apply(
+  data[[grep("TN|Tn|tn", names(data), value = TRUE)]],
+  1,
   FUN = \(vec) {
     as.character(vec) |>
       paste(collapse = "") |> . =>
       gsub("[[:punct:]]|[ \t\n\r\f\v]", "", .)
   }
-) |> . =>
-  subset(
-    data$`Daily-Tn-All-Stations Sheet 1.txt`,
-    !duplicated(.)
-  ) -> data$`Daily-Tn-All-Stations Sheet 1.txt`
+)
+#
+data[[grep("TN|Tn|tn", names(data), value = TRUE)]] |> . =>
+  if(nrow(.[duplicated(dupsMN), ]) == 0) {
+    "0 duplicates found for Min Temp"
+  } else {
+    sprintf(
+      "%i duplicates identified for Min Temp", nrow(.[duplicated(dupsMN), ])
+    )
+  }
+#
+data[[grep("TN|Tn|tn", names(data), value = TRUE)]] <- data[[grep("TN|Tn|tn", names(data), value = TRUE)]][!duplicated(dupsMN), ]
 
 
-################################################################################################################
+
+#====================================================================================
+
+
+#=======================================================================================
+
 
 # Adding a new column comprising Station name and Station ID to all 3 datasets ####
 suppressWarnings(

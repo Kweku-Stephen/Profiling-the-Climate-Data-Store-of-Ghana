@@ -23,27 +23,30 @@ source("For Linux_Unix Systems/Scripts/FunctionsScript.R")
 # Output Directory 
 dir.create("For Linux_Unix Systems/outputs/RR")
 
-# Computing nodes
-ncores <- parallelly::availableCores() - 17
+# path
+path <- "For Linux_Unix Systems/outputs"
 
 # Rainfall
 RR <- data[[grep("RR", names(data), value = TRUE)]]
 RR_split <- dataSplit[[grep("RR", names(dataSplit), value = TRUE)]]
 
 # Start and End Years for each Rainfall Stations ####
-startEndYear(list = RR_split) -> startEndYears_RR
+startEndYear(list = RR_split)  |> 
+  # Writing to Disk
+  write.csv(
+    file = paste(path, "RR/startEndYears of Rainfall Stations.csv", sep = "/"), 
+    row.names = FALSE
+  )
 
-# Writing to Disk
-write.csv(
-  startEndYears_RR, 
-  file = paste(path, "startEndYears of Rainfall Stations.csv", 
-  sep = "/"), 
-  row.names = FALSE
-)
+
+# Compute nodes
+ncores <- nCores()
+
 
 # spliting Stations IDs "Eg Gh Id" into 15 elements, as a function of cluster size
 idsRR <- parallel::splitIndices(length(unique(RR[ ,StationName_ID])), ncores) |> 
   lapply(\(vec) unique(RR[ ,StationName_ID])[vec])
+
 
 # Data Reshaping for all dataTables of the list "RR_Split" from "dataSplit" ####
 dataReshapedRR <- parallel::mclapply(
@@ -139,7 +142,7 @@ profileMissing |>
     },
     list = .
   ) |> 
-  setNames(regions) -> profMssReg
+  setNames(regions) -> profMssRegRR
 
 # Saving to workbooks
 parallel::mclapply(
@@ -165,40 +168,48 @@ parallel::mclapply(
         }
       )
     
+    # Writing out to an excel workbook
     rio::export(
       reg, 
-      file = file.path(getwd(), "For Linux_Unix Systems/outputs/RR", paste(vec, "xlsx", sep = ".")), 
+      file = file.path(path, "RR", paste(vec, "xlsx", sep = ".")), 
       sheetName = names(reg), 
       rowNames = FALSE
     )
     
   },
-  list = profMssReg,
-  mc.cores = 16
+  list = profMssRegRR,
+  mc.cores = ncores
 )
 
 
 
+#==============================Extracting Duplicates===================================
+#==============================Extracting Duplicates===================================
 # Duplicates ####
-Duplicates_RR <- Duplicates(Profile_StationsRR)
+Duplicates(Profile_StationsRR) |> 
+  # Writing to a workbook ####
+rio::export(
+  file = paste(path, "RR/Duplicates_RR.xlsx", sep = "/"), 
+  sheetNames = c("Duplicated IDs", "oneTownDiffIDs", "oneTownSD-IDsSameType")
+)
+
 
 # Same Observation Duplicates
-sameObservationRR <- subset(
-  data$`Daily-RR-All-Stations Sheet 1.txt`,
+subset(
+  data[[grep("RR|Rr|rr", names(data), value = TRUE)]],
   duplicated(
     with(
-      data$`Daily-RR-All-Stations Sheet 1.txt`,
+      data[[grep("RR|Rr|rr", names(data), value = TRUE)]],
       paste(Name, `Eg Gh Id`, `Station Type`, Year, Month, sep = "-")
     )
   )
-)
+) |> 
+  rio::export(file = paste(path, "RR/sameObservationRR.xlsx",sep = "/"))
 
-# Writing to a workbook ####
-rio::export(
-  Duplicates_RR, 
-  file = paste(path, "RR/Duplicates_RR.xlsx", sep = "/"), 
-  sheetNames = c("Duplicated IDs", "oneTownDiffIDs", "oneTownSD-IDsSameType"),
-)
+
+  
+
+
 
 
 

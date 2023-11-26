@@ -1,5 +1,5 @@
 #=====================================================================================================================
-#              GSSTI - GMET - 
+#              GSSTI - GMET - GNAPP
 # Digitizing Climatological Paper Archives in Ghana: 
 # 
 # Project: Digitizing Climatological Paper Archives in Ghana: Consultancy Service to support the Ghana Meteorololigcal Agency in Digitizing Climatological Paper Archives in Ghana
@@ -18,26 +18,28 @@
 Sys.setenv("_R_USE_PIPEBIND_" = "true")
 require(magrittr)
 
-# Path for output files
-path <- "For Linux_Unix Systems/outputs"
 
 
-# # Testing for sufficient cores for computation
-# nCores <- function() {
-#   
-#   nc <- as.integer(readline(prompt = "number of Cores for Computation: "))
-#   avCores <- parallelly::availableCores()
-#   
-#   output <- ifelse(
-#     nc > avCores,
-#     stop("Number of Cores must be less than or eaual to  ", avCores),
-#     nc
-#   )
-#   
-#   
-#   return(output)
-#   
-# }
+
+# Computation Cores
+# cores for computation
+nCores <- function() {
+  
+  availCores <- parallelly::availableCores()
+  nc <- as.integer(readline(
+    prompt = sprintf("Enter no. of compute nodes (must be > 1 and < %i) :", availCores)
+  ))
+  
+  output <- ifelse(
+    nc > availCores | nc <= 0,
+    stop(sprintf("Number of cores must be > 1 and < %i", availCores)),
+    nc
+  )
+  
+  
+  return(output)
+  
+}
 
 
 
@@ -232,7 +234,6 @@ missingDays <- function(data) {
 
 
 
-
 # # Duplicates ####
 Duplicates <- function(data) {
   
@@ -285,7 +286,7 @@ Duplicates <- function(data) {
 # Data Integrity visualization ####
 RRdataIntegVis <- function(reshapedData, StationName_ID = "") {
   
-  dt <- subset(reshapedData[[StationName_ID]], Date <= format(Sys.time(), "%Y-%m-%d")) |> . =>
+  dat <- subset(reshapedData[[StationName_ID]], Date <= format(Sys.time(), "%Y-%m-%d")) |> . =>
     data.table::merge.data.table(
       data.table::data.table(
         Date = seq.Date(
@@ -299,40 +300,40 @@ RRdataIntegVis <- function(reshapedData, StationName_ID = "") {
     )
   
   # Categorizing values
-  dt$Status <- sapply(
-    dt$value, 
+  dat$Status <- sapply(
+    dat$value, 
     \(x) {
       if (is.na(x)) {
         "Missing"
       } else if (x == 0) {
         "Dry"
       } else {
-        "Available"
+        "Wet"
       }
     }
   )
   
   # Adding nth Day Dates as a column
-  dt <- within(
-    dt,
-    {Day = as.numeric(strftime(dt$Date, format = "%j"))}
+  dat <- within(
+    dat,
+    {Day = as.numeric(strftime(dat$Date, format = "%j"))}
   )
   
   # Adding Status columns for each element of the status variable
-  dt %<>% base::within(
+  dat %<>% base::within(
     {
-      Dry = ifelse(dt$Status == "Dry", "Dry", NA)
-      Missing = ifelse(dt$Status == "Missing", "Missing", NA)
-      Available = ifelse(dt$Status == "Available", "Available", NA)
+      Dry = ifelse(dat$Status == "Dry", "Dry", NA)
+      Missing = ifelse(dat$Status == "Missing", "Missing", NA)
+      Available = ifelse(dat$Status == "Wet", "Wet", NA)
     }
   ) 
   
   # Plotting
-  rr <- ggplot(data = b, aes(x = as.numeric(format(b$Date, "%Y")))) +
+  rr <- ggplot(data = dat, aes(x = as.numeric(format(dat$Date, "%Y")))) +
     geom_point(
       data = data.table::merge.data.table(
-        data.table::data.table(Date = seq(as.Date(range(b$Date)[1]), as.Date(range(b$Date)[2]), by = "day")),
-        subset(b, Status == "Dry"),
+        data.table::data.table(Date = seq(as.Date(range(dat$Date)[1]), as.Date(range(dat$Date)[2]), by = "day")),
+        subset(dat, Status == "Dry"),
         by = "Date",
         all = TRUE
       ) |> data.table::setorderv(cols = "Date"), 
@@ -340,8 +341,8 @@ RRdataIntegVis <- function(reshapedData, StationName_ID = "") {
     ) +
     geom_point(
       data = data.table::merge.data.table(
-        data.table::data.table(Date = seq(as.Date(range(b$Date)[1]), as.Date(range(b$Date)[2]), by = "day")),
-        subset(b, Status == "Missing"),
+        data.table::data.table(Date = seq(as.Date(range(dat$Date)[1]), as.Date(range(dat$Date)[2]), by = "day")),
+        subset(dat, Status == "Missing"),
         by = "Date",
         all = TRUE
       ) |> data.table::setorderv(cols = "Date"), 
@@ -349,34 +350,36 @@ RRdataIntegVis <- function(reshapedData, StationName_ID = "") {
     ) +
     geom_point(
       data = data.table::merge.data.table(
-        data.table::data.table(Date = seq(as.Date(range(b$Date)[1]), as.Date(range(b$Date)[2]), by = "day")),
-        subset(b, Status == "Available"),
+        data.table::data.table(Date = seq(as.Date(range(dat$Date)[1]), as.Date(range(dat$Date)[2]), by = "day")),
+        subset(dat, Status == "Wet"),
         by = "Date",
         all = TRUE
       ) |> data.table::setorderv(cols = "Date"), 
-      aes(y = Day, col = "Available")
+      aes(y = Day, col = "Wet")
     ) +
     scale_color_manual(
       "Legend",
-      values = c("Dry" = "brown", "Missing" = "grey", "Available" = "darkblue")
+      values = c("Dry" = "brown", "Missing" = "grey", "Wet" = "darkblue")
     ) +
     labs(
       title = paste("Rainfall", StationName_ID, sep = " ") ,
-      x = "Day of Year", 
+      x = "Year", 
       y = "Day of the Year"
     ) +
     scale_x_continuous(
       breaks = seq(
-        min(as.numeric(format(b$Date, "%Y"))), 
-        max(as.numeric(format(b$Date, "%Y"))), 
+        min(as.numeric(format(dat$Date, "%Y"))), 
+        max(as.numeric(format(dat$Date, "%Y"))), 
         by = 10
       )
     ) +
     scale_y_continuous(breaks = seq(0, 366, 50)) +
     theme_classic() +
-    theme(legend.text = element_text(size = 11),
-          axis.text = element_text(size = 11),
-          axis.title = element_text(size = 14, face = "italic")) +
+    theme(legend.text = element_text(size = 14),
+          legend.title = element_text(size = 16, face = "bold"),
+          plot.title = element_text(size = 20, face = "bold", hjust = 0),
+          axis.text = element_text(size = 16),
+          axis.title = element_text(size = 18, face = "italic")) +
     guides(colour = guide_legend(override.aes = list(size=3)))
   
   # return value
@@ -387,7 +390,7 @@ RRdataIntegVis <- function(reshapedData, StationName_ID = "") {
 # Temperature ####
 TMdataIntegVis <- function(reshapedData, StationName_ID = "", var = "") {
   
-  dt <- subset(reshapedData[[StationName_ID]], Date <= format(Sys.time(), "%Y-%m-%d")) |> . =>
+  dat <- subset(reshapedData[[StationName_ID]], Date <= format(Sys.time(), "%Y-%m-%d")) |> . =>
     data.table::merge.data.table(
       data.table::data.table(
         Date = seq.Date(
@@ -401,8 +404,8 @@ TMdataIntegVis <- function(reshapedData, StationName_ID = "", var = "") {
     )
   
   # Categorizing values
-  dt$Status <- sapply(
-    dt$value, 
+  dat$Status <- sapply(
+    dat$value, 
     \(x) {
       if (is.na(x)) {
         "Missing"
@@ -413,26 +416,26 @@ TMdataIntegVis <- function(reshapedData, StationName_ID = "", var = "") {
   )
   
   # Adding nth Day Dates as a column
-  dt <- within(
-    dt,
-    {Day = as.numeric(strftime(dt$Date, format = "%j"))}
+  dat <- within(
+    dat,
+    {Day = as.numeric(strftime(dat$Date, format = "%j"))}
   )
   
   # Adding Status columns for each element of the status variable
-  dt %<>% base::within(
+  dat %<>% base::within(
     {
-      Missing = ifelse(dt$Status == "Missing", "Missing", NA)
-      Available = ifelse(dt$Status == "Available", "Available", NA)
+      Missing = ifelse(dat$Status == "Missing", "Missing", NA)
+      Available = ifelse(dat$Status == "Available", "Available", NA)
     }
   )
   
   
   # Plotting
-  tm <- ggplot(data = b, aes(x = as.numeric(format(b$Date, "%Y")))) +
+  tm <- ggplot(data = dat, aes(x = as.numeric(format(dat$Date, "%Y")))) +
     geom_point(
       data = data.table::merge.data.table(
-        data.table::data.table(Date = seq(as.Date(range(b$Date)[1]), as.Date(range(b$Date)[2]), by = "day")),
-        subset(b, Status == "Missing"),
+        data.table::data.table(Date = seq(as.Date(range(dat$Date)[1]), as.Date(range(dat$Date)[2]), by = "day")),
+        subset(dat, Status == "Missing"),
         by = "Date",
         all = TRUE
       ) |> data.table::setorderv(cols = "Date"), 
@@ -440,8 +443,8 @@ TMdataIntegVis <- function(reshapedData, StationName_ID = "", var = "") {
     ) +
     geom_point(
       data = data.table::merge.data.table(
-        data.table::data.table(Date = seq(as.Date(range(b$Date)[1]), as.Date(range(b$Date)[2]), by = "day")),
-        subset(b, Status == "Available"),
+        data.table::data.table(Date = seq(as.Date(range(dat$Date)[1]), as.Date(range(dat$Date)[2]), by = "day")),
+        subset(dat, Status == "Available"),
         by = "Date",
         all = TRUE
       ) |> data.table::setorderv(cols = "Date"), 
@@ -453,21 +456,23 @@ TMdataIntegVis <- function(reshapedData, StationName_ID = "", var = "") {
     ) +
     labs(
       title = paste(var, StationName_ID, sep = " ") ,
-      x = "Day of Year", 
+      x = "Year", 
       y = "Day of the Year"
     ) +
     scale_x_continuous(
       breaks = seq(
-        min(as.numeric(format(b$Date, "%Y"))), 
-        max(as.numeric(format(b$Date, "%Y"))), 
+        min(as.numeric(format(dat$Date, "%Y"))), 
+        max(as.numeric(format(dat$Date, "%Y"))), 
         by = 10
       )
     ) +
     scale_y_continuous(breaks = seq(0, 366, 50)) +
     theme_classic() +
-    theme(legend.text = element_text(size = 11),
-          axis.text = element_text(size = 11),
-          axis.title = element_text(size = 14, face = "italic")) +
+    theme(legend.text = element_text(size = 14),
+          legend.title = element_text(size = 16, face = "bold"),
+          plot.title = element_text(size = 20, face = "bold", hjust = 0),
+          axis.text = element_text(size = 16),
+          axis.title = element_text(size = 18, face = "italic"))  +
     guides(colour = guide_legend(override.aes = list(size=3)))
   
   # return value

@@ -1,18 +1,15 @@
 
 ################# Exclusive to Priority stations Script ###################
 
-# Enabling the Pipebind Operator
-Sys.setenv("_R_USE_PIPEBIND_" = "true")
-
-# Path to output
-path <- "For Linux_Unix Systems/outputs"
 
 # Missing Days ####
-MissingDays_prio <- function(vec = "", list, nCores, rgex = "") {
+MissingDays_prio <- function(vec = "", list, cluster, rgex = "") {
     
   # condition for execution
-  if (nCores >= parallelly::availableCores()) {
-    stop(paste("nCores must be <=", parallelly::availableCores()))
+  if (length(cluster) >= parallelly::availableCores() & length(cluster) <= 1) {
+    stop(sprintf(
+      "cluster size must be > 1 and less than %i", parallelly::availableCores()
+    ))
   }
   
   # Main Body
@@ -43,16 +40,17 @@ MissingDays_prio <- function(vec = "", list, nCores, rgex = "") {
       
     },
     list = list,
-    mc.cores = nCores
+    mc.cores = cluster
   ) |> . =>
     # binding into one contiguous list
     do.call("c", .)) |> . =>
     do.call("rbind", .) -> Dist
   
-  Dist1 <- split(Dist, as.factor(Dist[ ,"Distr"]))
-  
-  # Priority Districts
-  return(Dist1[grep(rgex, names(Dist1), value = TRUE)])
+  # Return
+  return(
+    split(Dist, as.factor(Dist[ ,"Distr"])) |> . =>
+      .[grep(rgex, names(.), value = TRUE)]
+  )
 
 }
 
